@@ -49,7 +49,5 @@ pebble install --emulator basalt
 After changing `messageKeys` in `package.json`, delete `build/` first; otherwise the
 generated C header can go stale.
 
-`tools/build.sh` exists because `pebble build` currently fails here. pebble-tool
-runs on the system Python 3.14 and exports that interpreter's `sys.path`
-to the SDK's Python 3.13 venv, so waf crashes on startup. The script runs waf
-the same way, without the leaked paths.
+pebble-tool runs on the system Python 3.14 and exports that interpreter's `sys.path`
+to the SDK's Python 3.13 venv.

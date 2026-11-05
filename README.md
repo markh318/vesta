@@ -15,7 +15,7 @@ The face has 4 rows with 8 cells per row. Each row can show any of the following
 - Custom text
 
 To mimic the Vestaboard, the watchface "flips" through each character in the following order
-(blank, A–Z, 1–9, 0, `! @ # $ ( ) - + & = ; : ' " % , . / ? ° ♥`, then red/orange/yellow/green/blue/violet/white)
+(blank, A–Z, 1–9, 0, \`! @ # $ ( ) - + & = ; : ' " % , . / ? ° ♥`, then red/orange/yellow/green/blue/violet/white)
 
 Flick your wrist to watch the cells flip!
 
@@ -49,7 +49,5 @@ pebble install --emulator basalt
 After changing `messageKeys` in `package.json`, delete `build/` first; otherwise the
 generated C header can go stale.
 
-`tools/build.sh` exists because `pebble build` currently fails here. pebble-tool
-runs on the system Python 3.14 and exports that interpreter's `sys.path`
-to the SDK's Python 3.13 venv, so waf crashes on startup. The script runs waf
-the same way, without the leaked paths.
+pebble-tool runs on the system Python 3.14 and exports that interpreter's `sys.path`
+to the SDK's Python 3.13 venv.

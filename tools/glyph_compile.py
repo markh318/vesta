@@ -122,6 +122,8 @@ IN_W, IN_H = TILE_W - 2, TILE_H - 2
 SPLIT = IN_H // 2            # interior row of the split line
 GLYPH_TOP = SPLIT - 8        # glyph row 8 sits on the split
 FLAP_EDGE = 9                # interior row of the falling flap's leading edge
+FLAP_EDGE_LOW = 2 * SPLIT - FLAP_EDGE   # the same edge, past horizontal
+FLIP_NONE, FLIP_TOP, FLIP_BOTTOM = 0, 1, 2
 
 
 def ink(key, glyphs, gx, gy):
@@ -148,8 +150,18 @@ def dim(c):
 FACE, BEZEL, SPLIT_C, EDGE_C = BLACK, DGRAY, BLACK, DGRAY
 
 
-def interior(cur, nxt, glyphs, x, y, flipping):
-    if not flipping or y >= SPLIT:
+def interior(cur, nxt, glyphs, x, y, flip):
+    if flip == FLIP_BOTTOM:
+        if y < SPLIT:
+            return ink(nxt, glyphs, x, y)
+        if y > FLAP_EDGE_LOW:           # current bottom half, in the falling flap's shadow
+            return dim(ink(cur, glyphs, x, y))
+        if y == FLAP_EDGE_LOW:          # leading edge of the falling flap
+            return EDGE_C
+        # falling flap: next bottom half, foreshortened toward the hinge
+        src = SPLIT + 1 + (y - SPLIT - 1) * (IN_H - SPLIT - 1) // (FLAP_EDGE_LOW - SPLIT - 1)
+        return ink(nxt, glyphs, x, src)
+    if flip == FLIP_NONE or y >= SPLIT:
         return ink(cur, glyphs, x, y)
     if y < FLAP_EDGE:                   # next flap revealed, in the falling flap's shadow
         return dim(ink(nxt, glyphs, x, y))
@@ -161,7 +173,7 @@ def interior(cur, nxt, glyphs, x, y, flipping):
     return ink(cur, glyphs, x, src)
 
 
-def draw_tile(px, ox, oy, cur, nxt, glyphs, flipping=False):
+def draw_tile(px, ox, oy, cur, nxt, glyphs, flip=FLIP_NONE):
     for y in range(TILE_H):
         for x in range(TILE_W):
             edge = x in (0, TILE_W - 1) or y in (0, TILE_H - 1)
@@ -170,7 +182,7 @@ def draw_tile(px, ox, oy, cur, nxt, glyphs, flipping=False):
             elif y - 1 == SPLIT:
                 c = SPLIT_C
             else:
-                c = interior(cur, nxt, glyphs, x - 1, y - 1, flipping) or FACE
+                c = interior(cur, nxt, glyphs, x - 1, y - 1, flip) or FACE
             px[ox + x, oy + y] = c
 
 
@@ -187,7 +199,7 @@ def preview(glyphs, path):
         cx, cy = 3 + (i % cols) * pitch_x, 5 + (i // cols) * 2 * pitch_y
         draw_tile(px, cx, cy, k, k, glyphs)
         nxt = keys[(i + 1) % len(keys)]
-        draw_tile(px, cx, cy + pitch_y, k, nxt, glyphs, flipping=True)
+        draw_tile(px, cx, cy + pitch_y, k, nxt, glyphs, flip=FLIP_TOP)
     im.resize((w * 5, h * 5), Image.NEAREST).save(path)
 
 

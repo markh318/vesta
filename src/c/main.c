@@ -27,10 +27,11 @@
 #define SPLIT (IN_H / 2)         // interior row of the split line
 #define GLYPH_TOP (SPLIT - 8)    // glyph row 8 sits on the split
 #define FLAP_EDGE 9              // interior row of the falling flap's leading edge
+#define FLAP_EDGE_LOW (2 * SPLIT - FLAP_EDGE)   // the same edge, past horizontal
 #define BOARD_W (COLS * TILE_W + (COLS - 1) * GAP_X)
 #define BOARD_H (ROWS * TILE_H + (ROWS - 1) * GAP_Y)
 
-// 30 fps; each flap step is one mid-flip frame plus two frames at rest,
+// 30 fps; each flap step is two mid-flip frames plus one frame at rest,
 // i.e. 10 characters per second like the real board.
 #define FRAME_MS 33
 #define FRAMES_PER_STEP 3
@@ -55,6 +56,7 @@ typedef enum {
 
 typedef enum { ECO_OFF, ECO_SMART, ECO_ON, ECO_MODE_COUNT } EcoMode;
 typedef enum { THEME_DARK, THEME_LIGHT, THEME_COUNT } Theme;
+typedef enum { FLIP_NONE, FLIP_TOP, FLIP_BOTTOM } FlipStage;
 
 typedef struct {
   uint8_t start[ROWS][COLS];    // flap index shown when the face opens
@@ -89,7 +91,7 @@ typedef struct {
   uint8_t target;   // flap index to stop at
   uint8_t laps;     // full extra revolutions still owed (wrist flick)
   uint8_t delay;    // flap steps to wait before moving (wrist-flick wave)
-  bool flipping;    // this frame shows the mid-flip to the next flap
+  uint8_t flip;     // FlipStage: which half of the flip to the next flap is shown
   bool direct;      // next flip lands straight on target instead of cur + 1
 } Cell;
 
@@ -152,11 +154,14 @@ static void anim_step(void *context) {
         if (c->delay > 0) {
           c->delay--;
         } else {
-          c->flipping = true;
+          c->flip = FLIP_TOP;
           dirty = true;
         }
-      } else if (phase == 1 && c->flipping) {
-        c->flipping = false;
+      } else if (phase == 1 && c->flip != FLIP_NONE) {
+        c->flip = FLIP_BOTTOM;
+        dirty = true;
+      } else if (phase == 2 && c->flip != FLIP_NONE) {
+        c->flip = FLIP_NONE;
         bool direct = c->direct;
         c->cur = cell_next(c);
         c->direct = false;
@@ -165,7 +170,7 @@ static void anim_step(void *context) {
         }
         dirty = true;
       }
-      busy |= cell_moving(c) || c->flipping;
+      busy |= cell_moving(c) || c->flip != FLIP_NONE;
     }
   }
   if (dirty) {
@@ -235,7 +240,8 @@ static void enter_eco(void *context) {
       Cell *c = &s_cells[r][col];
       c->cur = c->target;
       c->laps = c->delay = 0;
-      c->flipping = c->direct = false;
+      c->flip = FLIP_NONE;
+      c->direct = false;
     }
   }
   layer_mark_dirty(s_board_layer);
@@ -313,6 +319,36 @@ static void paint_face_row(uint8_t *px, uint8_t flap, int src_row, bool dimmed) 
   }
 }
 
+// First half of a flip: the flap falls from the top, carrying the current top
+// half foreshortened and shading the next character revealed behind it.
+static void paint_flip_top(uint8_t *px, const Cell *c, uint8_t next, int iy) {
+  if (iy > SPLIT) {
+    paint_face_row(px, c->cur, iy, false);
+  } else if (iy < FLAP_EDGE) {
+    paint_face_row(px, next, iy, true);
+  } else if (iy == FLAP_EDGE) {
+    memset(px, s_palette->bezel, IN_W);
+  } else {
+    int src = (iy - FLAP_EDGE - 1) * SPLIT / (SPLIT - FLAP_EDGE - 1);
+    paint_face_row(px, c->cur, src, false);
+  }
+}
+
+// Second half: the flap is past horizontal, bringing the next bottom half down
+// foreshortened over the current bottom half, which is now in its shadow.
+static void paint_flip_bottom(uint8_t *px, const Cell *c, uint8_t next, int iy) {
+  if (iy < SPLIT) {
+    paint_face_row(px, next, iy, false);
+  } else if (iy > FLAP_EDGE_LOW) {
+    paint_face_row(px, c->cur, iy, true);
+  } else if (iy == FLAP_EDGE_LOW) {
+    memset(px, s_palette->bezel, IN_W);
+  } else {
+    int src = SPLIT + 1 + (iy - SPLIT - 1) * (IN_H - SPLIT - 1) / (FLAP_EDGE_LOW - SPLIT - 1);
+    paint_face_row(px, next, src, false);
+  }
+}
+
 static void draw_tile(GBitmap *fb, int ox, int oy, const Cell *c) {
   uint8_t next = cell_next(c);
   for (int y = 0; y < TILE_H; y++) {
@@ -328,17 +364,12 @@ static void draw_tile(GBitmap *fb, int ox, int oy, const Cell *c) {
       memset(face, s_palette->bg, IN_W);
       continue;
     }
-    if (!c->flipping || iy > SPLIT) {
-      paint_face_row(face, c->cur, iy, false);
-    } else if (iy < FLAP_EDGE) {
-      // Behind the falling flap: the next character, in the flap's shadow.
-      paint_face_row(face, next, iy, true);
-    } else if (iy == FLAP_EDGE) {
-      memset(face, s_palette->bezel, IN_W);
+    if (c->flip == FLIP_TOP) {
+      paint_flip_top(face, c, next, iy);
+    } else if (c->flip == FLIP_BOTTOM) {
+      paint_flip_bottom(face, c, next, iy);
     } else {
-      // The falling flap still carries the current top half, foreshortened.
-      int src = (iy - FLAP_EDGE - 1) * SPLIT / (SPLIT - FLAP_EDGE - 1);
-      paint_face_row(face, c->cur, src, false);
+      paint_face_row(face, c->cur, iy, false);
     }
   }
 }

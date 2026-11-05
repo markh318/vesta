@@ -17,8 +17,8 @@ SCREEN_W, SCREEN_H = 144, 168
 BOARD_W = COLS * gc.TILE_W + (COLS - 1) * GAP_X
 BOARD_H = ROWS * gc.TILE_H + (ROWS - 1) * GAP_Y
 FRAMES_PER_STEP = 3
-# GIF delays are in 1/100 s; 30+30+40 ms keeps each 3-frame flap step at 100 ms.
-STEP_DELAYS = (30, 30, 40)
+# GIF delays are in 1/100 s; 30+40+30 ms keeps each 3-frame flap step at 100 ms.
+STEP_DELAYS = (30, 40, 30)
 HOLD_MS = 1200
 STARTUP_HOLD_MS = 500
 RAINBOW_KEYS = 'roygbv'
@@ -30,7 +30,7 @@ class Cell:
     def __init__(self, flap):
         self.cur = self.target = flap
         self.laps = self.delay = 0
-        self.flipping = False
+        self.flip = gc.FLIP_NONE
 
     def moving(self):
         return self.cur != self.target or self.laps > 0
@@ -64,13 +64,15 @@ def step(cells, phase):
                 if c.delay > 0:
                     c.delay -= 1
                 else:
-                    c.flipping = True
-            elif phase == 1 and c.flipping:
-                c.flipping = False
+                    c.flip = gc.FLIP_TOP
+            elif phase == 1 and c.flip != gc.FLIP_NONE:
+                c.flip = gc.FLIP_BOTTOM
+            elif phase == 2 and c.flip != gc.FLIP_NONE:
+                c.flip = gc.FLIP_NONE
                 c.cur = (c.cur + 1) % len(gc.FLAPS)
                 if c.cur == c.target and c.laps > 0:
                     c.laps -= 1
-            busy |= c.moving() or c.flipping
+            busy |= c.moving() or c.flip != gc.FLIP_NONE
     return busy
 
 
@@ -82,7 +84,7 @@ def render(cells, glyphs, scale):
         for col, c in enumerate(row):
             nxt = gc.FLAPS[(c.cur + 1) % len(gc.FLAPS)]
             gc.draw_tile(px, x0 + col * (gc.TILE_W + GAP_X), y0 + r * (gc.TILE_H + GAP_Y),
-                         gc.FLAPS[c.cur], nxt, glyphs, flipping=c.flipping)
+                         gc.FLAPS[c.cur], nxt, glyphs, flip=c.flip)
     return im.resize((SCREEN_W * scale, SCREEN_H * scale), Image.NEAREST)
 
 
@@ -105,7 +107,7 @@ def main():
         busy = step(cells, frame % FRAMES_PER_STEP)
         img, ms = render(cells, glyphs, scale), STEP_DELAYS[frame % FRAMES_PER_STEP]
         if img.tobytes() == frames[-1].tobytes():
-            delays[-1] += ms   # merge identical frames (the second rest frame)
+            delays[-1] += ms   # merge identical frames
         else:
             frames.append(img)
             delays.append(ms)

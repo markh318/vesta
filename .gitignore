@@ -1,0 +1,14 @@
+# Build output
+build/
+.lock-waf*
+__pycache__/
+
+# Settings page (hosted separately, not part of this repository)
+config/
+
+# Local tooling
+.claude/
+
+# Third-party reference images
+vestachars.png
+vestademo.png

@@ -1,0 +1,40 @@
+{
+  "name": "vesta",
+  "author": "mah",
+  "version": "1.0.0",
+  "keywords": [
+    "pebble-app"
+  ],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "Vesta",
+    "uuid": "c177e270-efe1-4309-b85d-296744b2d4ba",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "basalt"
+    ],
+    "capabilities": [
+      "health",
+      "configurable",
+      "location"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "resources": {
+      "media": []
+    },
+    "messageKeys": [
+      "StartGrid",
+      "CustomRows",
+      "RowModes",
+      "EcoMode",
+      "Theme",
+      "JSReady",
+      "WeatherRequest",
+      "WeatherText"
+    ]
+  }
+}

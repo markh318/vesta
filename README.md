@@ -2,9 +2,12 @@
 
 # Vesta
 
-A split-flap watchface for the original Pebble Time inspired by the Vestaboard.
+A split-flap watchface for the Pebble Time, Pebble Time 2 and Pebble Round 2 inspired by the Vestaboard.
 
-The face has 4 rows with 8 cells per row. Each row can show any of the following from the settings page:
+On the Pebble Time and Time 2, the face has 4 rows with 8 cells per row. On the Round 2, the rows
+follow the round display with 3, 8, 10, 8 and 3 cells; the 3-cell rows are too short for info
+and show custom cells. Each row can show any of the following from the settings page, as long
+as it fits:
 
 - Time
 - Date
@@ -32,18 +35,19 @@ Pebble phone app. The page's source is not part of this repository. `CONFIG_URL`
 
 - `src/c/main.c`: watchface code (flap state machine and framebuffer renderer)
 - `font/glyphs.txt`: hand-drawn pixel art for every character (`#` ink, `+` anti-alias, `.` empty)
-- `src/c/glyphs.h`: generated from `font/glyphs.txt`; do not edit by hand
+- `font/glyphs_hd.txt`: the larger set used by the Time 2 and Round 2, in the same format
+- `src/c/glyphs.h`: generated from both glyph files; do not edit by hand
 - `src/pkjs/index.js`: phone side: opens the settings page, relays settings, fetches weather
-- `tools/glyph_compile.py`: regenerates `glyphs.h`; `--preview out.png` renders an enlarged sheet with flip frames, and `--logo logo.png` renders the logo
-- `tools/demo_gif.py`: renders demo GIFs of the wrist-flick wave and (`--rainbow`) the startup
+- `tools/glyph_compile.py`: regenerates `glyphs.h`; `--preview out.png` renders an enlarged sheet with flip frames (`--preview-hd` for the larger set), and `--logo logo.png` renders the logo
+- `tools/demo_gif.py`: renders demo GIFs of the wrist-flick wave and (`--rainbow`) the startup; `--platform emery` or `gabbro` for the Time 2 or Round 2
 - `tools/build.sh`: build script (see below)
 
 ## Building
 
 ```sh
-python3 tools/glyph_compile.py        # after editing font/glyphs.txt
+python3 tools/glyph_compile.py        # after editing font/glyphs.txt or font/glyphs_hd.txt
 tools/build.sh                        # or `pebble build` if it works on your machine
-pebble install --emulator basalt
+pebble install --emulator basalt      # or emery (Time 2), gabbro (Round 2)
 ```
 
 After changing `messageKeys` in `package.json`, delete `build/` first; otherwise the

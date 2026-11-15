@@ -66,15 +66,35 @@ Pebble.addEventListener('appmessage', function(e) {
   }
 });
 
+// The settings page lays out its boards for the watch's platform: basalt (Pebble
+// Time), emery (Time 2) or gabbro (Round 2).
+function watchPlatform() {
+  try {
+    var info = Pebble.getActiveWatchInfo && Pebble.getActiveWatchInfo();
+    if (info && info.platform) {
+      return info.platform;
+    }
+  } catch (e) {}
+  return 'basalt';
+}
+
+// Settings are saved per platform since the boards differ. Pebble Time settings
+// saved before other platforms were supported live under the old key.
+function storageKey(platform) {
+  return 'settings-' + platform;
+}
+
 Pebble.addEventListener('showConfiguration', function() {
-  var saved = localStorage.getItem('settings') || '';
-  Pebble.openURL(CONFIG_URL + (saved ? '#' + encodeURIComponent(saved) : ''));
+  var platform = watchPlatform();
+  var saved = localStorage.getItem(storageKey(platform)) ||
+              (platform === 'basalt' && localStorage.getItem('settings')) || '';
+  Pebble.openURL(CONFIG_URL + '?platform=' + platform + (saved ? '#' + encodeURIComponent(saved) : ''));
 });
 
 Pebble.addEventListener('webviewclosed', function(e) {
   var settings = parseResponse(e.response);
   if (settings) {
-    localStorage.setItem('settings', JSON.stringify(settings));
+    localStorage.setItem(storageKey(watchPlatform()), JSON.stringify(settings));
     Pebble.sendAppMessage(settings);
   }
 });
